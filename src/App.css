@@ -1,0 +1,12 @@
+.App {
+    max-width: 800px;
+    margin: auto;
+}
+
+.detail {
+    display: flex;
+}
+
+.detail-col {
+    width: 50%;
+}
