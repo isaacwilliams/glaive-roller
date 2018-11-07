@@ -5,19 +5,24 @@
 }
 
 .detail {
+    font-style: italic;
+    color: grey;
+}
+
+.character-stats {
     display: flex;
 }
 
-.detail-col {
+.character-stats-col {
     width: 50%;
 }
 
 @media (max-width: 800px) {
-    .detail {
+    .character-stats {
         display: block;
     }
 
-    .detail-col {
+    .character-stats-col {
         width: auto;
     }
 }

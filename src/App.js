@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import parse from 'csv-parse';
-import { sum, times } from 'lodash/fp';
+import { sum, times, startsWith, negate } from 'lodash/fp';
 import './App.css';
 
 const BACKGROUNDS = 'https://docs.google.com/spreadsheets/d/e' +
@@ -149,7 +149,7 @@ class App extends Component {
                 ],
                 debt: {
                     holder: pick(debtholders),
-                    owed: rollDice(2)(6) * 10,
+                    owed: (rollDice(1)(6) + 6) * 10,
                 }
             });
         });
@@ -166,17 +166,33 @@ class App extends Component {
             )
         }
 
+        const isSpecialAbility = startsWith('Special:');
+
+        const specialAbility = items
+            .filter(isSpecialAbility)
+            .map((item) => item.replace('Special:', ''))[0];
+
+        const invetoryItems = items.filter(negate(isSpecialAbility))
+
         return (
             <div className="App">
 
                 <div className="character">
                     <h1>{name}</h1>
                     <p>Failed career: <strong>{failedCareer}</strong></p>
-                    <p>Debt: owes <strong>£{debt.owed}</strong> to a <strong>{debt.holder['Debt-holder']}</strong></p>
+
+                    {specialAbility && (
+                        <p>Special: <strong>{specialAbility}</strong></p>
+                    )}
+
+                    <p>
+                        Debt: owes <strong>£{debt.owed}</strong> to a <strong>{debt.holder['Debt-holder']}</strong>
+                        <span className="detail"> - {debt.holder['Debt-holder detail']}</span>
+                    </p>
                 </div>
 
-                <div className="detail">
-                    <div className="detail-col">
+                <div className="character-stats">
+                    <div className="character-stats-col">
                         <h3>Stats</h3>
 
                         <ul>
@@ -198,13 +214,13 @@ class App extends Component {
                         </ul>
                     </div>
 
-                    <div className="detail-col">
+                    <div className="character-stat-col">
 
                         <h3>Gear</h3>
                         <p>Inventory slots: {stats.str}</p>
 
                         <ul>
-                            {items.map((item, i) => (
+                            {invetoryItems.map((item, i) => (
                                 <li key={i}>{item}</li>
                             ))}
                         </ul>
