@@ -1,5 +1,6 @@
 .App {
     max-width: 800px;
+    padding: 10px 20px;
     margin: auto;
 }
 
@@ -9,4 +10,14 @@
 
 .detail-col {
     width: 50%;
+}
+
+@media (max-width: 800px) {
+    .detail {
+        display: block;
+    }
+
+    .detail-col {
+        width: auto;
+    }
 }
