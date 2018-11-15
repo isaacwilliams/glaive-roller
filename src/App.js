@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import parse from 'csv-parse';
-import { sum, times, startsWith, negate } from 'lodash/fp';
+import { sum, times, startsWith, negate, min } from 'lodash/fp';
 import './App.css';
 
 const BACKGROUNDS = 'https://docs.google.com/spreadsheets/d/e' +
@@ -16,6 +16,9 @@ const roll = (size) => Math.floor(Math.random() * size) + 1;
 const rollDice = (numberOfDice) => (sides) => sum(times(() => roll(sides), numberOfDice))
 
 const rollStat = () => rollDice(2)(6) + 3;
+const rollKnaveStat = () => min(times(() => roll(3), 3));
+
+
 const bonus = (stat) => Math.floor(stat / 3) - 3;
 
 const formatBonus = (bonus) => {
@@ -109,56 +112,78 @@ const rollStats = () => {
     return stats;
 };
 
+const rollKnaveStats = () => ({
+    str: rollKnaveStat(),
+    dex: rollKnaveStat(),
+    con: rollKnaveStat(),
+    int: rollKnaveStat(),
+    wis: rollKnaveStat(),
+    cha: rollKnaveStat(),
+})
+
 class App extends Component {
     state = {
         loaded: false,
-        name: '',
-        items: [],
-        failedCareer: null,
-        stats: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+        statType: 'glog',
     }
 
     componentDidMount() {
+        this.setState({ showKnaveStats: window.location.hash.indexOf('knave') > 0 })
+
         fetchData().then(({ backgrounds, startingGear, names, debtholders }) => {
-            console.log(backgrounds, startingGear);
-
-            const equipRoll1 = roll(10);
-            const equipRoll2 = roll(10);
-            const equipRoll3 = roll(10);
-            const equipRoll4 = roll(10);
-
-            const career = pick(backgrounds);
-
-            this.setState({
-                loaded: true,
-                stats: rollStats(),
-                name: selectName(names),
-                failedCareer: career['Failed career'],
-                items: [
-                    career['Item 1'],
-                    career['Item 2'],
-                    '------',
-                    'Torches',
-                    'Box of matches',
-                    'Rations',
-                    'Rations',
-                    '------',
-                    `Equipment rolls: ${equipRoll1}, ${equipRoll2}, ${equipRoll3}, ${equipRoll4}`,
-                    '------',
-                    ...selectEquipment(startingGear)(equipRoll1, equipRoll2, equipRoll3, equipRoll4),
-                ],
-                debt: {
-                    holder: pick(debtholders),
-                    owed: (rollDice(1)(6) + 6) * 10,
-                }
-            });
+            this.setState({ loaded: true, backgrounds, startingGear, names, debtholders });
+            this.rollCharacter(this.state.statType);
         });
     }
 
-    render() {
-        const { loaded, items, failedCareer, name, stats, debt } = this.state;
+    rollCharacter(statType) {
+        const { backgrounds, startingGear, names, debtholders } = this.state;
 
-        if (!loaded) {
+        const equipRoll1 = roll(10);
+        const equipRoll2 = roll(10);
+        const equipRoll3 = roll(10);
+        const equipRoll4 = roll(10);
+
+        const career = pick(backgrounds);
+
+        const stats = statType === 'knave' ? rollKnaveStats() : rollStats();
+
+        const character = {
+            statType,
+            stats: stats,
+            knaveHp: roll(8),
+            name: selectName(names),
+            failedCareer: career['Failed career'],
+            items: [
+                career['Item 1'],
+                career['Item 2'],
+                '------',
+                'Torches',
+                'Box of matches',
+                'Rations',
+                '------',
+                `Equipment rolls: ${equipRoll1}, ${equipRoll2}, ${equipRoll3}, ${equipRoll4}`,
+                '------',
+                ...selectEquipment(startingGear)(equipRoll1, equipRoll2, equipRoll3, equipRoll4),
+            ],
+            debt: {
+                holder: pick(debtholders),
+                owed: (rollDice(2)(6) + 3) * 10,
+            }
+        }
+
+        this.setState({ character });
+    }
+
+    switchStatType(toStatType) {
+        this.setState({ statType: toStatType });
+        this.rollCharacter(toStatType);
+    }
+
+    render() {
+        const { loaded, character } = this.state;
+
+        if (!loaded || !character) {
             return (
                 <div className="App">
                     <h1>Loading...</h1>
@@ -166,19 +191,33 @@ class App extends Component {
             )
         }
 
+        const { items, failedCareer, name, stats, statType, debt } = character;
+
         const isSpecialAbility = startsWith('Special:');
 
         const specialAbility = items
             .filter(isSpecialAbility)
             .map((item) => item.replace('Special:', ''))[0];
 
-        const invetoryItems = items.filter(negate(isSpecialAbility))
+        const invetoryItems = items.filter(negate(isSpecialAbility));
+
+        console.log(stats);
 
         return (
             <div className="App">
 
                 <div className="character">
-                    <h1>{name}</h1>
+                    <div className="header">
+                        <h1>{name}</h1>
+
+                        <div className="controls">
+                            <button onClick={() => this.rollCharacter(statType)}>Roll again</button>
+                            {statType === 'knave' ?
+                                <button onClick={() => this.switchStatType('glog')}>Switch to GLOG stats</button> :
+                                <button onClick={() => this.switchStatType('knave')}>Switch to Knave stats</button>}
+                        </div>
+                    </div>
+
                     <p>Failed career: <strong>{failedCareer}</strong></p>
 
                     {specialAbility && (
@@ -192,32 +231,52 @@ class App extends Component {
                 </div>
 
                 <div className="character-stats">
-                    <div className="character-stats-col">
-                        <h3>Stats</h3>
+                    {statType === 'knave' ? (
+                        <div className="character-stats-col">
+                            <h3>Stats</h3>
 
-                        <ul>
-                            <li>Str: {stats.str} ({formatStatBonus(stats.str)})</li>
-                            <li>Dex: {stats.dex} ({formatStatBonus(stats.dex)})</li>
-                            <li>Con: {stats.con} ({formatStatBonus(stats.con)})</li>
-                            <li>Int: {stats.int} ({formatStatBonus(stats.int)})</li>
-                            <li>Wis: {stats.wis} ({formatStatBonus(stats.wis)})</li>
-                            <li>Cha: {stats.cha} ({formatStatBonus(stats.cha)})</li>
-                        </ul>
+                            <ul>
+                                <li>Str: {stats.str} | {stats.str + 10}</li>
+                                <li>Dex: {stats.dex} | {stats.dex + 10}</li>
+                                <li>Con: {stats.con} | {stats.con + 10}</li>
+                                <li>Int: {stats.int} | {stats.int + 10}</li>
+                                <li>Wis: {stats.wis} | {stats.wis + 10}</li>
+                                <li>Cha: {stats.cha} | {stats.cha + 10}</li>
+                            </ul>
 
-                        <ul>
-                            <li>Attack: 11</li>
-                            <li>HP: {stats.con - 4}</li>
-                            <li>Move: {12 + bonus(stats.dex)}</li>
-                            <li>Stealth: {5 + bonus(stats.dex)}</li>
-                            <li>Initiative: {stats.wis}</li>
-                            <li>Save: {6 + bonus(stats.dex)}</li>
-                        </ul>
-                    </div>
+                            <ul>
+                                <li>HP: {character.knaveHp}</li>
+                            </ul>
+                        </div>
+                    ) : (
+                        <div className="character-stats-col">
+                            <h3>Stats</h3>
+
+                            <ul>
+                                <li>Str: {stats.str} ({formatStatBonus(stats.str)})</li>
+                                <li>Dex: {stats.dex} ({formatStatBonus(stats.dex)})</li>
+                                <li>Con: {stats.con} ({formatStatBonus(stats.con)})</li>
+                                <li>Int: {stats.int} ({formatStatBonus(stats.int)})</li>
+                                <li>Wis: {stats.wis} ({formatStatBonus(stats.wis)})</li>
+                                <li>Cha: {stats.cha} ({formatStatBonus(stats.cha)})</li>
+                            </ul>
+
+                            <ul>
+                                <li>Attack: 11</li>
+                                <li>HP: {stats.con - 4}</li>
+                                <li>Move: {12 + bonus(stats.dex)}</li>
+                                <li>Stealth: {5 + bonus(stats.dex)}</li>
+                                <li>Initiative: {stats.wis}</li>
+                                <li>Save: {6 + bonus(stats.dex)}</li>
+                            </ul>
+                        </div>
+                    )}
+
 
                     <div className="character-stat-col">
 
                         <h3>Gear</h3>
-                        <p>Inventory slots: {stats.str}</p>
+                        <p>Inventory slots: {statType === 'knave' ? stats.str + 10 : stats.str}</p>
 
                         <ul>
                             {invetoryItems.map((item, i) => (
