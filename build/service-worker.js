@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/3.6.3/workbox-sw.js");
 
 importScripts(
-  "/glaive-roller/precache-manifest.14799793db8c1e1184c3c0474213c6ed.js"
+  "/glaive-roller/precache-manifest.e348d4e11cc8a986589e4c826772afd9.js"
 );
 
 workbox.clientsClaim();
